@@ -1,0 +1,34 @@
+[Unit]
+Description=RetroFlag Pi Case status LED
+Documentation=https://github.com/RetroFlag/retroflag-picase
+# Default dependencies on purpose: this unit must never be able to stall boot
+# or shutdown. systemd sends SIGTERM early in the shutdown transaction, the
+# daemon blinks for a few seconds and exits on its own.
+StartLimitIntervalSec=60
+StartLimitBurst=5
+
+[Service]
+Type=simple
+EnvironmentFile=/etc/default/retroflag-picase
+# liblgpio creates a notification FIFO in $LG_WD (falling back to $HOME) and
+# reopens it through a path relative to the CWD. Unless all three point at a
+# writable directory it fails with '.lgd-nfy-3' and gpiozero either dies or
+# degrades to the mmap NativeFactory, which never releases the GPIO line.
+RuntimeDirectory=retroflag-picase
+WorkingDirectory=/run/retroflag-picase
+Environment=LG_WD=/run/retroflag-picase
+Environment=HOME=/run/retroflag-picase
+Environment=GPIOZERO_PIN_FACTORY=lgpio
+ExecStart=/opt/retroflag-picase/venv/bin/python /opt/retroflag-picase/retroflag_led.py
+Restart=on-failure
+RestartSec=2
+# The daemon blinks for LED_SHUTDOWN_BLINK_SECS on SIGTERM, then exits.
+TimeoutStopSec=15
+# Hardening
+NoNewPrivileges=yes
+ProtectSystem=strict
+ProtectHome=yes
+PrivateTmp=yes
+
+[Install]
+WantedBy=multi-user.target

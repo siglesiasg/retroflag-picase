@@ -1,0 +1,29 @@
+#!/bin/sh
+# Runs at the very end of the shutdown transaction, after all services are
+# stopped and the filesystems are read-only. systemd passes the verb as $1.
+#
+# The case microcontroller is armed by the button press and watches these pins
+# to decide when to cut power, so they must be driven low on the way out. This
+# also runs on reboot because the stock RetroFlag script powers the case down
+# through `shutdown -r now`.
+
+case "$1" in
+    poweroff | halt | reboot) ;;
+    *) exit 0 ;;
+esac
+
+[ -r /etc/default/retroflag-picase ] && . /etc/default/retroflag-picase
+
+POWEREN_GPIO="${POWEREN_GPIO:-4}"
+LED_GPIO="${LED_GPIO:-14}"
+
+command -v pinctrl >/dev/null 2>&1 || exit 0
+
+[ -n "$LED_GPIO" ] && pinctrl set "$LED_GPIO" op dl 2>/dev/null
+
+[ -n "$POWEREN_GPIO" ] || exit 0
+pinctrl set "$POWEREN_GPIO" op dl 2>/dev/null
+
+# Give the case a moment to react before the SoC resets.
+sleep 2
+exit 0
